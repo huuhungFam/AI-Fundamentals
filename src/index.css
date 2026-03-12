@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@theme {
+  --animate-glow: glow 1.5s ease-in-out infinite alternate;
+  
+  @keyframes glow {
+    0% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.5); }
+    100% { box-shadow: 0 0 20px rgba(59, 130, 246, 1); }
+  }
+}
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #0f172a; /* Slate 900 */
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+}
+
+/* Custom Grid Styles */
+.grid-cell {
+  transition: all 0.2s ease-in-out;
+}
+
+.cell-start {
+  background-color: #22c55e !important; /* Green 500 */
+}
+
+.cell-goal {
+  background-color: #ef4444 !important; /* Red 500 */
+}
+
+.cell-wall {
+  background-color: #f1f5f9 !important; /* Slate 100 – white wall */
+}
+
+.cell-beam {
+  background-color: #eab308 !important; /* Yellow 500 */
+  box-shadow: 0 0 10px #eab308;
+}
+
+.cell-path {
+  background-color: #3b82f6 !important; /* Blue 500 */
+  box-shadow: 0 0 15px #3b82f6;
+  z-index: 10;
+}
+
+.cell-visited {
+  background-color: rgba(234, 179, 8, 0.2);
+}
+
+/* Tree Node Animation */
+@keyframes glow-blue {
+  0% { box-shadow: 0 0 5px #3b82f6; }
+  100% { box-shadow: 0 0 20px #3b82f6; }
+}
+
+.path-node {
+  animation: glow-blue 1.5s ease-in-out infinite alternate;
+}
