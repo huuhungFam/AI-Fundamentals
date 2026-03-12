@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, RotateCcw, Box, FastForward, Sliders } from 'lucide-react';
+import { Play, RotateCcw, Sliders } from 'lucide-react';
 import { gridBeamSearch } from '../utils/beamSearch';
+import SpeedSlider from './SpeedSlider';
 
 const ROWS = 20;
 const COLS = 20;
@@ -16,7 +17,8 @@ const GridBoard = ({ preset, setPreset, onSearchComplete }) => {
   const [beamHistory, setBeamHistory] = useState([]);
   const [currentStep, setCurrentStep] = useState(-1);
   const [finalPath, setFinalPath] = useState([]);
-  const [editMode, setEditMode] = useState('wall'); // 'wall', 'start', 'goal'
+  const [editMode, setEditMode] = useState('wall');
+  const [speed, setSpeed] = useState(1); // multiplier
   const isMouseDown = useRef(false);
 
   const reset = () => {
@@ -78,7 +80,7 @@ const GridBoard = ({ preset, setPreset, onSearchComplete }) => {
           onSearchComplete({ history, path, parentMap, start, goal });
         }
       }
-    }, 100);
+    }, Math.round(100 / speed));
   };
 
   const applyPreset = (type) => {
@@ -161,6 +163,11 @@ const GridBoard = ({ preset, setPreset, onSearchComplete }) => {
             <button onClick={() => applyPreset('best')} className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs transition-colors">Best Case</button>
             <button onClick={() => applyPreset('worst')} className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs transition-colors">Worst Case</button>
           </div>
+        </div>
+
+        {/* Speed */}
+        <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-700/50">
+          <SpeedSlider speed={speed} onChange={setSpeed} />
         </div>
 
         <div className="mt-auto space-y-3">

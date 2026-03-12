@@ -10,6 +10,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Play, RotateCcw, Zap, Grid3X3, TreePine, AlertTriangle } from 'lucide-react';
 import { generateTreeData, buildTreeFromGridResult } from '../utils/beamSearch';
+import SpeedSlider from './SpeedSlider';
 
 const TreeBoard = ({ preset, gridResult }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -19,6 +20,7 @@ const TreeBoard = ({ preset, gridResult }) => {
   // treeMode: 'best' | 'worst' | 'grid'
   const [treeMode, setTreeMode] = useState('grid');
   const intervalRef = useRef(null);
+  const [speed, setSpeed] = useState(1); // multiplier
   // Tracks all node IDs that have ever entered the beam (to keep them yellow)
   const everInBeamRef = useRef(new Set());
 
@@ -241,7 +243,7 @@ const TreeBoard = ({ preset, gridResult }) => {
           clearInterval(intervalRef.current);
           setIsSearching(false);
         }
-      }, 400);
+      }, Math.round(400 / speed));
     } else {
       let level = 0;
       const maxLevel = 4;
@@ -252,7 +254,7 @@ const TreeBoard = ({ preset, gridResult }) => {
           clearInterval(intervalRef.current);
           setIsSearching(false);
         }
-      }, 1500);
+      }, Math.round(1500 / speed));
     }
   };
 
@@ -319,6 +321,11 @@ const TreeBoard = ({ preset, gridResult }) => {
             )}
           </div>
         )}
+
+        {/* Speed slider */}
+        <div className="border-l border-slate-700 pl-4 min-w-[200px]">
+          <SpeedSlider speed={speed} onChange={setSpeed} />
+        </div>
 
         {/* Actions */}
         <div className="ml-auto flex gap-3">
