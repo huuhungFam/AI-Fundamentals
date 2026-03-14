@@ -16,14 +16,16 @@ NenTangAI/
 │   ├── 01_Code_Architecture_And_UI.md
 │   └── 02_Algorithm_Flow_And_Logic.md
 └── src/
+    ├── assets/                 # Ảnh/icon nội bộ (Vite import)
     ├── main.jsx                # Bootstrap ứng dụng React
     ├── App.jsx                 # Component gốc, quản lý tab & state chia sẻ
-    ├── App.css                 # CSS toàn cục bổ sung
+    ├── App.css                 # (Hiện tại chưa được import) CSS legacy từ template Vite
     ├── index.css               # CSS cốt lõi: biến, grid-cell classes
     ├── components/
     │   ├── TopMenu.jsx         # Thanh điều hướng tab (Grid / Tree)
     │   ├── GridBoard.jsx       # Màn hình mô phỏng tìm đường trên lưới 2D
-    │   └── TreeBoard.jsx       # Màn hình mô phỏng cây pruning (ReactFlow)
+    │   ├── TreeBoard.jsx       # Màn hình mô phỏng cây pruning (ReactFlow/@xyflow)
+    │   └── SpeedSlider.jsx     # Slider tốc độ mô phỏng (0.25x → 4x)
     └── utils/
         └── beamSearch.js       # Toàn bộ logic thuật toán & xây dựng dữ liệu cây
 ```
@@ -34,6 +36,7 @@ NenTangAI/
 |---|---|
 | `main.jsx` | Render `<App />` vào DOM, là cầu nối giữa React và file HTML |
 | `App.jsx` | Component chứa state toàn cục, điều phối hai màn hình chính |
+| `SpeedSlider.jsx` | UI điều chỉnh tốc độ mô phỏng (multiplier), được dùng ở cả Grid và Tree |
 | `TopMenu.jsx` | Thanh navigation đơn thuần (stateless), nhận callback từ `App` |
 | `GridBoard.jsx` | UI + logic animation cho lưới 2D 20×20 |
 | `TreeBoard.jsx` | UI + logic animation cho cây tìm kiếm dùng ReactFlow |
@@ -57,7 +60,7 @@ createRoot(document.getElementById('root')).render(
 )
 ```
 
-- `createRoot` là API của React 18 cho phép concurrent rendering.
+- `createRoot` là API của React 18+ (bao gồm React 19) cho phép concurrent rendering.
 - `StrictMode` kích hoạt các cảnh báo phát triển (double-render trong dev mode) để phát hiện side-effect không thuần túy.
 - `index.css` được import tại đây để đảm bảo CSS được áp dụng toàn cục trước khi bất kỳ component nào render.
 
@@ -82,7 +85,7 @@ function App() {
 | State | Kiểu dữ liệu | Giá trị mặc định | Ý nghĩa |
 |---|---|---|---|
 | `activeTab` | `string` | `'grid'` | Tab đang hiển thị: `'grid'` hoặc `'tree'` |
-| `preset` | `string` | `'best'` | Preset hiện tại: `'best'` hoặc `'worst'`, được đồng bộ giữa hai tab |
+| `preset` | `string` | `'best'` | Preset cho **GridBoard**: `'best'` hoặc `'worst'` (TreeBoard hiện điều khiển bằng `treeMode` nội bộ, không đọc `preset`) |
 | `gridResult` | `object | null` | `null` | Kết quả tìm kiếm trên lưới, chứa `{ history, path, parentMap, start, goal }` |
 
 #### Luồng dữ liệu (Data Flow)
@@ -97,8 +100,8 @@ App (state: activeTab, preset, gridResult)
   │         └── Khi tìm xong: gọi onSearchComplete({history, path, parentMap, start, goal})
   │                              → App.gridResult được cập nhật
   │
-  └──► TreeBoard ── props: preset, gridResult
-             └── Nhận gridResult để vẽ cây từ kết quả lưới thực tế
+  └──► TreeBoard ── props: gridResult  (App vẫn truyền `preset` nhưng TreeBoard hiện chưa sử dụng)
+             └── Nhận gridResult để vẽ cây từ kết quả lưới thực tế (Grid Demo)
 ```
 
 Thiết kế này là **Prop Drilling** một cách có chủ ý: `gridResult` chỉ cần chia sẻ một chiều từ `GridBoard` → `App` → `TreeBoard`, không cần Context hay Redux.
@@ -151,8 +154,9 @@ const TopMenu = ({ activeTab, setActiveTab }) => {
 
 ```jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, RotateCcw, Box, FastForward, Sliders } from 'lucide-react';
+import { Play, RotateCcw, Sliders } from 'lucide-react';
 import { gridBeamSearch } from '../utils/beamSearch';
+import SpeedSlider from './SpeedSlider';
 
 const ROWS = 20;
 const COLS = 20;
@@ -174,6 +178,7 @@ const GridBoard = ({ preset, setPreset, onSearchComplete }) => {
   const [currentStep, setCurrentStep]   = useState(-1);
   const [finalPath, setFinalPath]       = useState([]);
   const [editMode, setEditMode]         = useState('wall');
+  const [speed, setSpeed]               = useState(1);       // multiplier (0.25x → 4x)
   const isMouseDown                     = useRef(false);
 ```
 
@@ -190,6 +195,7 @@ const GridBoard = ({ preset, setPreset, onSearchComplete }) => {
 | `currentStep` | `number` | `-1` | Index frame hiện tại của animation (`-1` = chưa bắt đầu) |
 | `finalPath` | `{x,y}[]` | `[]` | Mảng tọa độ tạo thành đường đi tối ưu khi tìm thấy goal |
 | `editMode` | `string` | `'wall'` | Chế độ chỉnh sửa lưới: `'wall'`, `'start'`, hoặc `'goal'` |
+| `speed` | `number` | `1` | Tốc độ mô phỏng (multiplier). Frame interval được tính bằng `Math.round(100 / speed)` ms |
 | `isMouseDown` | `Ref<boolean>` | `false` | **Không phải state** — lưu trạng thái chuột để xử lý drag mà không trigger re-render |
 
 #### Tại sao `isMouseDown` dùng `useRef` thay vì `useState`?
@@ -246,7 +252,7 @@ const handleCellInteraction = (x, y) => {
 
 ```jsx
 const applyPreset = (type) => {
-  setPreset(type);    // Thông báo lên App về preset mới (đồng bộ sang TreeBoard)
+  setPreset(type);    // Thông báo lên App về preset mới (hiện chủ yếu phục vụ GridBoard)
   reset();            // Xóa sạch mọi state animation
 
   const newGrid = Array(ROWS).fill().map(() => Array(COLS).fill(0));
@@ -299,12 +305,12 @@ CSS classes tương ứng được định nghĩa trong `index.css`:
 
 ```css
 /* src/index.css */
-.cell-start   { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
-.cell-goal    { background-color: #ef4444; box-shadow: 0 0 8px #ef4444; }
-.cell-path    { background-color: #3b82f6; box-shadow: 0 0 6px #3b82f6; }
-.cell-beam    { background-color: #eab308; box-shadow: 0 0 8px #eab308; }
-.cell-visited { background-color: #1e3a5f; }
-.cell-wall    { background-color: white;   }
+.cell-start   { background-color: #22c55e !important; }
+.cell-goal    { background-color: #ef4444 !important; }
+.cell-wall    { background-color: #f1f5f9 !important; }
+.cell-beam    { background-color: #eab308 !important; box-shadow: 0 0 10px #eab308; }
+.cell-path    { background-color: #3b82f6 !important; box-shadow: 0 0 15px #3b82f6; z-index: 10; }
+.cell-visited { background-color: rgba(234, 179, 8, 0.2); }
 ```
 
 ### 5.5 Cơ chế Animation — Kết hợp `setInterval` và mảng `beamHistory`
@@ -340,7 +346,7 @@ const startSearch = () => {
         onSearchComplete({ history, path, parentMap, start, goal });
       }
     }
-  }, 100);                              // 100ms mỗi frame = 10 FPS
+  }, Math.round(100 / speed));          // SpeedSlider điều chỉnh tốc độ (multiplier)
 };
 ```
 
@@ -358,7 +364,7 @@ setBeamHistory(history) ─── lưu toàn bộ frames vào state
 setFinalPath(path)
         │
         ▼
-setInterval(callback, 100ms)
+setInterval(callback, round(100/speed) ms)
         │
         ├── Tick 1: setCurrentStep(0) → React re-render → getCellClass đọc beamHistory[0]
         ├── Tick 2: setCurrentStep(1) → React re-render → getCellClass đọc beamHistory[1]
@@ -370,7 +376,7 @@ setInterval(callback, 100ms)
 
 **Thiết kế "Pre-compute, then Animate":** Thuật toán không chạy từng bước trong interval. Thay vào đó, toàn bộ lịch sử được tính trước ngay lập tức (trong vài milliseconds), sau đó interval chỉ đơn giản là "tua lại" các frame đã có sẵn. Điều này đảm bảo:
 - Animation mượt mà, không bị block bởi tính toán.
-- Có thể thay đổi tốc độ dễ dàng bằng cách điều chỉnh `100` (ms/frame).
+- Có thể thay đổi tốc độ dễ dàng bằng `SpeedSlider` (thay vì hard-code ms/frame).
 
 ---
 
@@ -379,8 +385,9 @@ setInterval(callback, 100ms)
 ### 6.1 Dependencies và State
 
 ```jsx
-import { ReactFlow, useNodesState, useEdgesState, Background, Controls } from '@xyflow/react';
+import { ReactFlow, useNodesState, useEdgesState, Background, Controls, MarkerType } from '@xyflow/react';
 import { generateTreeData, buildTreeFromGridResult } from '../utils/beamSearch';
+import SpeedSlider from './SpeedSlider';
 
 const TreeBoard = ({ preset, gridResult }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -389,6 +396,7 @@ const TreeBoard = ({ preset, gridResult }) => {
   const [isSearching, setIsSearching]    = useState(false);
   const [treeMode, setTreeMode]          = useState('grid');
   const intervalRef                      = useRef(null);
+  const [speed, setSpeed]                = useState(1);        // multiplier
   const everInBeamRef                    = useRef(new Set());
 ```
 
@@ -403,6 +411,7 @@ const TreeBoard = ({ preset, gridResult }) => {
 | `k` | Beam width cho chế độ preset (độc lập với k của GridBoard) |
 | `treeMode` | Chế độ hiển thị: `'best'`, `'worst'`, hoặc `'grid'` |
 | `intervalRef` | Ref lưu interval ID để có thể `clearInterval` khi cần (tránh memory leak) |
+| `speed` | Tốc độ mô phỏng (multiplier). Preset dùng `Math.round(1500 / speed)`, Grid Demo dùng `Math.round(400 / speed)` |
 | `everInBeamRef` | **Accumulate Set** — tập hợp tất cả node IDs đã từng vào beam, dùng để giữ màu vàng sau khi beam đi qua |
 
 ### 6.2 Hook `useEffect` — Đồng bộ với preset và gridResult
@@ -419,6 +428,14 @@ useEffect(() => {
 ```
 
 Effect này chạy lại mỗi khi `treeMode` thay đổi (người dùng chuyển tab trong TreeBoard) **hoặc** `gridResult` thay đổi (GridBoard vừa hoàn thành tìm kiếm mới). Đây là điểm đồng bộ quan trọng giữa hai màn hình.
+
+### 6.2.1 Hành vi khi chưa có `gridResult` (Grid Demo)
+
+Trong `treeMode === 'grid'`, nếu người dùng **chưa chạy Grid Search** (tức `gridResult === null`), `TreeBoard` sẽ:
+
+- Render 1 node placeholder (dashed border) nhắc “Run a Grid Search first!”
+- Disable nút `Simulate` (vì không có `history` để replay)
+- Hiển thị badge cảnh báo ở hàng điều khiển (“No grid search yet …”)
 
 ### 6.3 Hàm `buildFlowData` — Xây dựng Cây từ Data Preset
 
@@ -487,7 +504,7 @@ const animatePresetStep = (level) => {
 ```
 
 Chiến lược animation level-by-level:
-1. **Mỗi level = một frame animation** (interval 1500ms/frame cho preset).
+1. **Mỗi level = một frame animation** (preset: `Math.round(1500 / speed)` ms/frame).
 2. `setNodes` dùng **functional update** (`nds => ...`) để đảm bảo nhận state mới nhất.
 3. Spread operator `{ ...n, style: { ...n.style, ... } }` tạo object mới, kích hoạt React re-render.
 4. `everInBeamRef` đảm bảo node đã vào beam trước đó luôn giữ màu vàng mờ để người xem thấy lịch sử.
@@ -524,6 +541,8 @@ Hàm này mirror chính xác logic trực quan của `GridBoard.getCellClass` nh
 - Node trong beam hiện tại: màu **vàng sáng** (active beam).
 - Node từng trong beam: màu **vàng mờ** (lịch sử beam).
 - Node đã visited: màu **xám nhạt** (đã khám phá).
+
+Tốc độ replay trong **Grid Demo của TreeBoard** được điều khiển bởi `SpeedSlider` với interval `Math.round(400 / speed)` ms/frame (khác với GridBoard là `Math.round(100 / speed)`).
 
 ---
 

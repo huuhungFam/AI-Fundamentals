@@ -183,23 +183,42 @@ export const generateTreeData = (type = 'best') => {
   const root = { id: 'root', label: 'S', h: 10, children: [] };
   if (type === 'best') {
     root.children = [
-      { id: '1-1', label: 'A (h=5)', h: 5, children: [
-          { id: '2-1', label: 'B (h=2)', h: 2, children: [
+      {
+        id: '1-1', label: 'A (h=5)', h: 5, children: [
+          {
+            id: '2-1', label: 'B (h=2)', h: 2, children: [
               { id: 'goal', label: 'G (h=0)', h: 0, isGoal: true, children: [] }
-          ]}
-      ]},
-      { id: '1-2', label: 'C (h=8)', h: 8, children: [
+            ]
+          }
+        ]
+      },
+      {
+        id: '1-2', label: 'C (h=8)', h: 8, children: [
           { id: '1-2-1', label: 'D (h=9)', h: 9, children: [] }
-      ]}
+        ]
+      }
     ];
   } else {
+    // Worst case: 3 children from root.
+    // A(h=1), B(h=2) look promising but are dead-ends.
+    // C(h=10) has worst heuristic → pruned when k≤2 → Goal unreachable.
+    // Only k≥3 keeps C and finds Goal.
     root.children = [
-      { id: 'w-1', label: 'X (h=2)', h: 2, children: [
-          { id: 'w-1-1', label: 'Dead-end\n(h=1)', h: 1, children: [] }
-      ]},
-      { id: 'w-2', label: 'Y (h=9)', h: 9, children: [
+      {
+        id: 'w-1', label: 'A (h=1)', h: 1, children: [
+          { id: 'w-1-1', label: 'Dead-end\n(h=∞)', h: 99, children: [] }
+        ]
+      },
+      {
+        id: 'w-2', label: 'B (h=2)', h: 2, children: [
+          { id: 'w-2-1', label: 'Dead-end\n(h=∞)', h: 99, children: [] }
+        ]
+      },
+      {
+        id: 'w-3', label: 'C (h=10)', h: 10, children: [
           { id: 'goal', label: 'G (h=0)', h: 0, isGoal: true, children: [] }
-      ]}
+        ]
+      }
     ];
   }
   return root;

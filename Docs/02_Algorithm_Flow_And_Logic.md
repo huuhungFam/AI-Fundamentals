@@ -13,7 +13,7 @@ File này đóng vai trò là **lõi thuần logic** của ứng dụng, hoàn t
 |---|---|
 | `gridBeamSearch(grid, start, goal, k)` | Thuật toán Beam Search trên lưới 2D |
 | `buildTreeFromGridResult(history, parentMap, path, start, goal)` | Chuyển đổi kết quả lưới thành dữ liệu cây ReactFlow |
-| `generateTreeData(type)` | Tạo dữ liệu cây mẫu tĩnh (Best/Worst Case) |
+| `generateTreeData(type = 'best')` | Tạo dữ liệu cây mẫu tĩnh (Best/Worst Case) |
 
 ---
 
@@ -412,7 +412,29 @@ export const generateTreeData = (type = 'best') => {
           { id: '1-2-1', label: 'D (h=9)', h: 9, children: [] }
       ]}
     ];
-  } else { /* worst case ... */ }
+  } else {
+    // Worst case: 3 children from root.
+    // A(h=1), B(h=2) look promising but are dead-ends.
+    // C(h=10) has worst heuristic → pruned when k≤2 → Goal unreachable.
+    // Only k≥3 keeps C and finds Goal.
+    root.children = [
+      {
+        id: 'w-1', label: 'A (h=1)', h: 1, children: [
+          { id: 'w-1-1', label: 'Dead-end\n(h=∞)', h: 99, children: [] }
+        ]
+      },
+      {
+        id: 'w-2', label: 'B (h=2)', h: 2, children: [
+          { id: 'w-2-1', label: 'Dead-end\n(h=∞)', h: 99, children: [] }
+        ]
+      },
+      {
+        id: 'w-3', label: 'C (h=10)', h: 10, children: [
+          { id: 'goal', label: 'G (h=0)', h: 0, isGoal: true, children: [] }
+        ]
+      }
+    ];
+  }
   return root;
 };
 ```
@@ -448,14 +470,19 @@ Với k=1: Mỗi level chỉ giữ node có h nhỏ nhất. A(h=5) < C(h=8) → 
 ### 7.2 Worst Case — Minh họa Điểm yếu Beam Search
 
 ```
-                [S] h=10
-               /         \
-        [X] h=2           [Y] h=9    ← Với k=1: chọn X, bỏ Y
-             |                 |
-     [Dead-end] h=1       [G] h=0   ← Goal nằm trong nhánh bị prune!
+                  [S] h=10
+            /        |          \
+     [A] h=1      [B] h=2     [C] h=10
+        |            |           |
+   [Dead-end]     [Dead-end]    [G] h=0
 ```
 
-Với k=1: Beam Search chọn X(h=2) vì tốt hơn Y(h=9), nhưng X dẫn đến dead-end. Goal nằm trong nhánh Y đã bị cắt bỏ → **Thuật toán thất bại**. Với k≥2: cả X và Y đều được giữ → Goal tìm được.
+Trường hợp này được thiết kế để nhánh có heuristic **tốt nhất** lại dẫn tới bế tắc:
+
+- Với `k ≤ 2`: Beam chỉ giữ A(h=1) và B(h=2) ở level 1, và **prune** C(h=10). Vì Goal nằm dưới C nên thuật toán **thất bại** (không thể chạm Goal).
+- Với `k ≥ 3`: Beam giữ cả A, B, C → nhánh C được mở rộng và Goal được tìm thấy.
+
+Trong mã, các node “Dead-end (h=∞)” được biểu diễn bằng `h = 99` như một cách xấp xỉ “vô cực” để minh họa trực quan.
 
 ---
 

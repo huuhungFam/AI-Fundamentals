@@ -147,16 +147,21 @@ const TreeBoard = ({ preset, gridResult }) => {
         const isWorst = nds.some(n => n.id === 'w-1');
         const newBeam = [];
         if (!isWorst) {
+          // Best case tree
           if (level === 2) newBeam.push('2-1');
           if (level >= 3) newBeam.push('goal');
         } else {
-          if (k >= 2 && level === 2) newBeam.push('w-2');
-          if (k >= 2 && level >= 3) newBeam.push('goal');
+          // Worst case tree: expand children of whichever w- nodes are in beam
+          if (level === 2) {
+            if (everInBeamRef.current.has('w-1')) newBeam.push('w-1-1');
+            if (everInBeamRef.current.has('w-2')) newBeam.push('w-2-1');
+            if (everInBeamRef.current.has('w-3')) newBeam.push('goal');
+          }
         }
         newBeam.forEach(id => everInBeamRef.current.add(id));
 
         return nds.map(n => {
-          const isGoalReached = n.id === 'goal' && level >= 3;
+          const isGoalReached = n.id === 'goal' && newBeam.includes('goal');
           if (newBeam.includes(n.id)) {
             return { ...n, style: { ...n.style, opacity: 1, border: isGoalReached ? '4px solid #3b82f6' : '3px solid #eab308', boxShadow: isGoalReached ? '0 0 20px #3b82f6' : '0 0 8px #eab308' } };
           }
@@ -269,11 +274,10 @@ const TreeBoard = ({ preset, gridResult }) => {
   const tabBtn = (mode, icon, label, colorClass) => (
     <button
       onClick={() => setTreeMode(mode)}
-      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all border ${
-        treeMode === mode
+      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all border ${treeMode === mode
           ? `${colorClass} text-white border-transparent shadow-lg`
           : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-      }`}
+        }`}
     >
       {icon}
       {label}
