@@ -222,7 +222,6 @@ Thuật toán dùng `Array.prototype.sort` với comparator `(a, b) => a.h - b.h
 
 ### 4.3 Sơ đồ Luồng Toàn diện
 
-```mermaid
 flowchart TD
     A[Bắt đầu: gridBeamSearch] --> B[Khởi tạo: currentBeam = [start], visited = {start}]
     B --> C{currentBeam rỗng?}
@@ -236,7 +235,6 @@ flowchart TD
     J --> K[Sắp xếp nextCandidates theo h tăng dần]
     K --> L[Pruning: slice 0 đến k\ncurrentBeam = k node tốt nhất]
     L --> C
-```
 
 ---
 
