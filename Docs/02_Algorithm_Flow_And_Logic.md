@@ -222,7 +222,7 @@ Thuật toán dùng `Array.prototype.sort` với comparator `(a, b) => a.h - b.h
 
 ### 4.3 Sơ đồ Luồng Toàn diện
 
-```mermaid
+```
 flowchart TD
     A[Bắt đầu: gridBeamSearch] --> B[Khởi tạo: currentBeam = [start], visited = {start}]
     B --> C{currentBeam rỗng?}
